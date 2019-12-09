@@ -107,7 +107,42 @@ static const uint8_t oled_font6x8 []  = {
     0x00, 0x7E, 0x01, 0x49, 0x55, 0x73, // ß
 };
 
-OLED::OLED(uint8_t i2c_address, uint_fast8_t width, uint_fast8_t height, bool isSH1106) :
+void delay(int x)
+	{
+	vTaskDelay(x / portTICK_PERIOD_MS);
+	}
+
+void i2c_master_init(int sda, int scl)
+	{
+	i2c_config_t i2c_config;
+	i2c_config.mode = I2C_MODE_MASTER;
+	i2c_config.sda_io_num = (gpio_num_t)sda;
+	i2c_config.scl_io_num = (gpio_num_t)scl;
+	i2c_config.sda_pullup_en = GPIO_PULLUP_ENABLE;
+	i2c_config.scl_pullup_en = GPIO_PULLUP_ENABLE;
+	i2c_config.master.clk_speed = 1000000;
+	i2c_param_config(I2C_NUM_0, &i2c_config);
+	i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
+	}
+
+void OLED::i2c_start()
+	{
+	cmd = i2c_cmd_link_create();
+	i2c_master_start(cmd);
+	}
+void OLED::i2c_stop()
+	{
+	i2c_master_stop(cmd);
+	i2c_master_cmd_begin(I2C_NUM_0, cmd, 10 / portTICK_PERIOD_MS);
+	i2c_cmd_link_delete(cmd);
+	}
+bool OLED::i2c_send(uint8_t byte)
+	{
+	i2c_master_write_byte(cmd, byte, true);
+	return false;
+	}
+
+OLED::OLED(uint8_t i2c_address,int sda,int sdl, uint_fast8_t width, uint_fast8_t height, bool isSH1106) :
 i2c_address(i2c_address),
 width(width),
 height(height),
@@ -115,6 +150,7 @@ isSH1106(isSH1106),
 pages((height + 7) / 8),
 bufsize(static_cast<uint_least16_t> (pages*width))
 {
+	i2c_master_init(sda, sdl);
     this->buffer = (uint8_t *) malloc(bufsize); // two dimensional array of n pages each of n columns.
     X=0;
     Y=0;

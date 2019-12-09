@@ -7,11 +7,13 @@
 #include <string.h> 
 #include <stddef.h>
 #include <cstdarg>
+#include "driver/gpio.h"
+#include "driver/i2c.h"
+#include "freertos/task.h"
 
-extern void delay(int x);
+void delay(int x);
 
 #define yield()
-#define OLED_I2C_DELAY delayMicroseconds(1) // 110kHz@80Mhz or 170kHz@160Mhz
 
 
 #define OLED_FONT_HEIGHT 8
@@ -59,46 +61,40 @@ class OLED
 		enum tFillmode { HOLLOW, SOLID };
 		enum tSize { NORMAL_SIZE, DOUBLE_SIZE };
 		enum tScrollEffect { NO_SCROLLING = 0, HORIZONTAL_RIGHT = 0x26, HORIZONTAL_LEFT = 0x27, DIAGONAL_RIGHT = 0x29, DIAGONAL_LEFT = 0x2A };
-		OLED(uint8_t i2c_address = 0x3C, uint_fast8_t width = 128, uint_fast8_t height = 32, bool isSH1106 = false);
+		OLED(uint8_t i2c_address = 0x3C,int sda=22,int sdl=21, uint_fast8_t width = 128, uint_fast8_t height = 32, bool isSH1106 = false);
 
 		virtual ~OLED();
 		void begin();
 		void set_power(bool enable);
 		void set_invert(bool enable);
 		void set_contrast(uint8_t contrast);
-
 		void set_scrolling(tScrollEffect scroll_type, uint_fast8_t first_page = 0, uint_fast8_t last_page = 7);
-
 		void scroll_up(uint_fast8_t num_lines = OLED_FONT_HEIGHT, uint_fast8_t delay_ms = 0);
+
 		void display();
+
 		void clear(tColor color = BLACK);
 		void draw_bitmap(uint_fast8_t x, uint_fast8_t y, uint_fast8_t width, uint_fast8_t height, const uint8_t* data, tColor color = WHITE);
 		void draw_bitmap_P(uint_fast8_t x, uint_fast8_t y, uint_fast8_t width, uint_fast8_t height, const uint8_t* data, tColor color = WHITE);
-		size_t draw_character(uint_fast8_t x, uint_fast8_t y, char c, tSize scaling = NORMAL_SIZE, tColor color = WHITE);
-		void draw_string(uint_fast8_t x, uint_fast8_t y, const char* s, tSize scaling = NORMAL_SIZE, tColor color = WHITE);
-
-		void draw_string_P(uint_fast8_t x, uint_fast8_t y, const char* s, tSize scaling = NORMAL_SIZE, tColor color = WHITE);
 		void draw_pixel(uint_fast8_t x, uint_fast8_t y, tColor color = WHITE);
 		void draw_line(uint_fast8_t x0, uint_fast8_t y0, uint_fast8_t x1, uint_fast8_t y1, tColor color = WHITE);
-
 		void draw_circle(uint_fast8_t x, uint_fast8_t y, uint_fast8_t radius, tFillmode fillMode = HOLLOW, tColor color = WHITE);
-
 		void draw_rectangle(uint_fast8_t x0, uint_fast8_t y0, uint_fast8_t x1, uint_fast8_t y1, tFillmode fillMode = HOLLOW, tColor color = WHITE);
-		size_t write(uint8_t c);
 
+
+		size_t draw_character(uint_fast8_t x, uint_fast8_t y, char c, tSize scaling = NORMAL_SIZE, tColor color = WHITE);
+		void draw_string(uint_fast8_t x, uint_fast8_t y, const char* s, tSize scaling = NORMAL_SIZE, tColor color = WHITE);
+		void draw_string_P(uint_fast8_t x, uint_fast8_t y, const char* s, tSize scaling = NORMAL_SIZE, tColor color = WHITE);
+		void setCursor(uint_fast8_t x, uint_fast8_t y);
+		size_t printf(uint_fast8_t x, uint_fast8_t y, const char *format, ...);
+		void setTTYMode(bool Enabled);
+
+		size_t write(uint8_t c);
 		inline size_t write(unsigned long n)	{ return write((uint8_t)n);}
 		inline size_t write(long n)				{ return write((uint8_t)n);}
 		inline size_t write(unsigned int n)		{ return write((uint8_t)n);}
 		inline size_t write(int n)				{ return write((uint8_t)n);}
-
-
 		size_t write(const uint8_t *buffer, size_t len);
-
-		void setCursor(uint_fast8_t x, uint_fast8_t y);
-
-		size_t printf(uint_fast8_t x, uint_fast8_t y, const char *format, ...);
-
-		void setTTYMode(bool Enabled);
 
 	private:
 		const uint8_t i2c_address;
@@ -115,11 +111,11 @@ class OLED
 		void draw_byte(uint_fast8_t x, uint_fast8_t y, uint8_t b, tColor color);
 		void draw_bytes(uint_fast8_t x, uint_fast8_t y, const uint8_t* data, uint_fast8_t size, tSize scaling, tColor color, bool useProgmem);
 
-		// you need to implement these for whatever system - spi/i2c
+		// ESP32 stuff
 		void i2c_start();
 		void i2c_stop();
 		bool i2c_send(uint8_t byte);
-
+		i2c_cmd_handle_t cmd;
 	};
 
 #endif /* OLED_H */
